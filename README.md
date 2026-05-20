@@ -12,9 +12,9 @@ CloudSync is a full-stack web application that allows users to securely upload, 
 |---|---|
 | User Authentication | Secure signup and login with JWT tokens via bcryptjs |
 | Password Strength Check | Real-time password strength indicator on signup |
-| File Upload | Upload files via file picker (Multer) |
+| File Upload | Upload files via file picker|
 | File Preview | In-browser file viewer with iframe support |
-| File Sharing | Generate shareable links via Web Share API (clipboard fallback) |
+| File Sharing | Generate shareable links via Web Share API |
 | File Delete | Remove files instantly from both disk and MongoDB |
 | Dashboard | View total files, store, share and manage everything in one place |
 | Data Persistence | Files persist in MongoDB across sessions |
