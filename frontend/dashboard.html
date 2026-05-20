@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>CloudSync Dashboard</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%233b82f6'/%3E%3Cstop offset='100%25' stop-color='%2360a5fa'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='12' fill='%230f172a'/%3E%3Cpath d='M44 42H22c-5.523 0-10-4.477-10-10 0-5.185 3.947-9.449 8.998-9.95A11.99 11.99 0 0132 18c4.145 0 7.798 2.106 9.945 5.264A8.5 8.5 0 0144 23.5c4.694 0 8.5 3.806 8.5 8.5S48.694 42 44 42z' fill='url(%23g)' stroke='%2393c5fd' stroke-width='1.5'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="style.css">
+
+</head>
+
+<body>
+
+    <!-- LOGOUT BUTTON TOP RIGHT -->
+    <div class="top-bar">
+        <button type="button" class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+
+    <div class="dashboard-container">
+
+        <h1>Dashboard</h1>
+
+        <p class="subtitle">
+            Upload and manage your files locally
+        </p>
+
+        <!-- STATS -->
+
+        <div class="stats-grid">
+
+            <div class="stat-card">
+
+                <h3>Total Files</h3>
+
+                <h2 id="totalFiles">0</h2>
+
+            </div>
+
+            <div class="stat-card">
+
+                <h3>Total Storage Used</h3>
+
+                <h2 id="totalStorage">0 MB</h2>
+
+            </div>
+
+            <div class="stat-card">
+
+                <h3>Storage Usage</h3>
+
+                <h2 id="storageUsage">0%</h2>
+
+            </div>
+
+        </div>
+
+        <!-- UPLOAD -->
+
+        <div class="upload-box">
+
+            <h2>Upload File</h2>
+
+            <p>
+                Upload images, PDFs and files securely
+            </p>
+
+            <label
+                for="fileInput"
+                class="upload-btn"
+            >
+                Choose File
+            </label>
+
+            <input
+                type="file"
+                id="fileInput"
+                hidden
+                onchange="uploadFile(event)"
+            >
+
+            <!-- PROGRESS -->
+            <div id="progressContainer" class="progress-container" style="display:none;">
+                <div class="progress-bar-bg">
+                    <div id="progressBar" class="progress-bar"></div>
+                </div>
+                <p id="progressText">Uploading...</p>
+            </div>
+
+        </div>
+
+        <!-- FILES -->
+
+        <div class="files-section">
+
+            <div class="files-header">
+
+                <h2>Your Files</h2>
+
+            </div>
+
+            <div id="filesContainer">
+
+                <p class="empty-text">
+                    No files uploaded
+                </p>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- POPUP -->
+
+    <div
+        id="popup"
+        class="popup"
+    >
+
+        <span id="popupText"></span>
+
+    </div>
+
+    <script>
+        function logout() {
+            localStorage.clear();
+            sessionStorage.clear();
+            window.location.href = 'login.html';
+        }
+
+        const API = "http://localhost:5000/api/files";
+
+        // Delay helper for predictable synchronous execution
+        const delay = (ms) => new Promise(res => setTimeout(res, ms));
+
+        // LOAD FILES
+        async function loadFiles() {
+            try {
+                const response = await fetch(API);
+                const files = await response.json();
+                
+                const filesContainer = document.getElementById("filesContainer");
+                const totalFiles = document.getElementById("totalFiles");
+                const totalStorage = document.getElementById("totalStorage");
+                const storageUsage = document.getElementById("storageUsage");
+
+                filesContainer.innerHTML = "";
+                totalFiles.innerText = files.length;
+
+                let totalBytes = 0;
+                files.forEach(file => {
+                    totalBytes += file.size;
+                });
+
+                const totalMB = (totalBytes / (1024 * 1024)).toFixed(2);
+                totalStorage.innerText = totalMB + " MB";
+
+                const percentage = ((totalBytes / (1024 * 1024 * 100)) * 100).toFixed(1);
+                storageUsage.innerText = percentage + "%";
+
+                if (files.length === 0) {
+                    filesContainer.innerHTML = `<p class="empty-text">No files uploaded</p>`;
+                    return;
+                }
+
+                files.forEach(file => {
+                    const div = document.createElement("div");
+                    div.classList.add("file-card");
+                    const size = (file.size / 1024).toFixed(2);
+
+                    // Ensure path formatting is URL-safe (especially on Windows where Multer uses backslashes)
+                    const safePath = file.path.replace(/\\/g, "/");
+                    const safeName = file.originalname.replace(/'/g, "\\'");
+
+                    // Generate full URL for the frontend viewer wrapper
+                    const currentHost = window.location.href.split('dashboard.html')[0];
+                    const rawFileUrl = `http://localhost:5000/${safePath}`;
+                    const viewerUrl = `${currentHost}viewer.html?file=${encodeURIComponent(rawFileUrl)}&name=${encodeURIComponent(safeName)}`;
+
+                    div.innerHTML = `
+                        <div class="file-info">
+                            <h3>${file.originalname}</h3>
+                            <p>${size} KB</p>
+                        </div>
+                        <div class="file-actions">
+                            <a href="${viewerUrl}" target="_self" class="view-btn">View</a>
+                            <button type="button" class="share-btn" onclick="shareFile('${viewerUrl}', '${safeName}')">Share</button>
+                            <button type="button" class="delete-btn" onclick="deleteFile('${file._id}')">Delete</button>
+                        </div>
+                    `;
+                    filesContainer.appendChild(div);
+                });
+            } catch (error) {
+                console.log(error);
+            }
+        }
+
+        // UPLOAD FILE
+        async function uploadFile(event) {
+            const fileInput = event.target;
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            // Clear input value immediately ensuring we can select the exact same file again freely!
+            fileInput.value = '';
+
+            const progressContainer = document.getElementById("progressContainer");
+            const progressBar = document.getElementById("progressBar");
+            const progressText = document.getElementById("progressText");
+
+            progressContainer.style.display = "block";
+            progressBar.style.width = "0%";
+            progressText.innerText = "Uploading...";
+
+            const formData = new FormData();
+            formData.append("file", file);
+
+            const startTime = Date.now();
+            let progress = 0;
+            const loader = setInterval(() => {
+                progress += Math.random() * 10 + 5;
+                if (progress > 90) progress = 90;
+                progressBar.style.width = progress + "%";
+            }, 300);
+
+            try {
+                const response = await fetch(`${API}/upload`, {
+                    method: "POST",
+                    body: formData
+                });
+                
+                if (!response.ok) throw new Error("Upload failed");
+                await response.json();
+
+                const elapsedTime = Date.now() - startTime;
+                const remainingTime = Math.max(3000 - elapsedTime, 0);
+
+                // Replaced detached setTimeout scope with linear Promise await
+                await delay(remainingTime);
+
+                clearInterval(loader);
+                progressBar.style.width = "100%";
+                progressText.innerText = "File uploaded successfully";
+
+                await delay(500);
+
+                progressContainer.style.display = "none";
+                showPopup("File uploaded successfully", "success", 4000);
+                loadFiles();
+
+            } catch (error) {
+                clearInterval(loader);
+                progressContainer.style.display = "none";
+                console.error("Upload error:", error);
+                showPopup("Upload failed", "error", 4000);
+            }
+        }
+
+        // SHARE FILE
+        async function shareFile(fileUrl, filename) {
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: 'CloudSync File',
+                        text: `Check out my file: ${filename}`,
+                        url: fileUrl
+                    });
+                } catch (error) {
+                    console.log('Error sharing:', error);
+                }
+            } else {
+                // Fallback for older Desktop browsers: copy to clipboard
+                try {
+                    await navigator.clipboard.writeText(fileUrl);
+                    showPopup("Link copied to clipboard!", "success", 4000);
+                } catch (err) {
+                    showPopup("Failed to copy link", "error", 4000);
+                }
+            }
+        }
+
+        // DELETE FILE
+        async function deleteFile(id) {
+            const progressContainer = document.getElementById("progressContainer");
+            const progressBar = document.getElementById("progressBar");
+            const progressText = document.getElementById("progressText");
+
+            progressContainer.style.display = "block";
+            progressBar.style.width = "100%";
+            progressText.innerText = "Deleting file...";
+
+            try {
+                // 1s guaranteed fake delete visually linear
+                await delay(1000);
+
+                const response = await fetch(`${API}/${id}`, {
+                    method: "DELETE"
+                });
+                
+                if (!response.ok) throw new Error("Delete failed");
+
+                progressContainer.style.display = "none";
+                showPopup("File deleted successfully", "success", 4000);
+                loadFiles();
+            } catch (error) {
+                progressContainer.style.display = "none";
+                console.error("Delete error:", error);
+                showPopup("Delete failed", "error", 4000);
+            }
+        }
+
+        // POPUP
+        let popupTimeout;
+        function showPopup(message, type, duration = 4000) {
+            const popup = document.getElementById("popup");
+            const popupText = document.getElementById("popupText");
+
+            clearTimeout(popupTimeout);
+            
+            popupText.innerText = message;
+            
+            // Bypass any CSS transition bugs so it explicitly renders
+            popup.style.transition = "none";
+            popup.style.opacity = "1";
+            popup.style.top = "30px";
+            popup.style.bottom = "auto"; // Ensure bottom doesn't conflict
+
+            if (type === "success") {
+                popup.style.background = "#16a34a"; // valid green
+            } else {
+                popup.style.background = "#dc2626"; // invalid red
+            }
+
+            // Restore transition for smooth fade out
+            setTimeout(() => {
+                popup.style.transition = "0.4s";
+                
+                popupTimeout = setTimeout(() => {
+                    popup.style.opacity = "0";
+                    popup.style.top = "-100px";
+                }, duration);
+            }, 50);
+        }
+
+        // INITIAL LOAD
+        loadFiles();
+    </script>
+
+</body>
+
+</html>
