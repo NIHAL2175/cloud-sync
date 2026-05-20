@@ -16,7 +16,7 @@ CloudSync is a full-stack web application that allows users to securely upload, 
 | File Preview | In-browser file viewer with iframe support |
 | File Sharing | Generate shareable links via Web Share API (clipboard fallback) |
 | File Delete | Remove files instantly from both disk and MongoDB |
-| Dashboard | View total files, storage used, and manage everything in one place |
+| Dashboard | View total files, store, share and manage everything in one place |
 | Data Persistence | Files persist in MongoDB across sessions |
 | AI Assistant | Built-in chatbot (Neeli) to help users navigate the app |
 | Responsive Design | Fully functional on desktop and mobile |
